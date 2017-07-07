@@ -1,0 +1,23 @@
+#!/bin/bash
+
+MAIL="toto@example.net"
+MAIL2="toto@example.org"
+
+monitor () {
+    hash="$(curl -s $1 | md5sum | cut -d ' ' -f1)"
+    [ "$hash" == "$2" ] ||
+        (alert "$1 $hash" $MAIL && alert "$1 $hash" $MAIL2)
+    sleep 10s
+}
+
+check_200 () {
+    [ "$(curl -s -I -w '%{http_code}' -o /dev/null $1)" == "200" ] ||
+        (alert $1 $MAIL && alert $1 $MAIL2)
+    sleep 10s
+}
+alert () {
+    echo "$1 has changed" | mail -s "$1 has changed" $2
+}
+
+check_200 https://wikipedia.fr
+monitor https://wikipedia.fr d41d8cd98f00b204e9800998ecf8427e
