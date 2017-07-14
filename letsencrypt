@@ -61,7 +61,7 @@ EOF
         service apache2 reload
     fi
     if service nginx status > /dev/null ; then
-        cat /etc/nginx/conf.d/000-acme-challenges.conf.inc << EOF
+        cat > /etc/nginx/conf.d/000-acme-challenges.conf.inc << EOF
     location /.well-known/acme-challenge/ {
         alias /var/www/challenges/;
         try_files \$uri =404;
