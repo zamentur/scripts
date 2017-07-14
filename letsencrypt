@@ -63,12 +63,12 @@ EOF
     if service nginx status > /dev/null ; then
         cat > /etc/nginx/conf.d/000-acme-challenges.conf.inc << EOF
     location /.well-known/acme-challenge/ {
-        alias /var/www/challenges/;
+        alias /var/www/acme-challenges/;
         try_files \$uri =404;
     }
 EOF
         local domain=$1
-        sed "@server_name ${domain};@a include conf.d/000-acme-challenges.conf.inc;" /etc/nginx/sites-available/*.conf
+        sed -i "/server_name ${domain};/a include conf.d/000-acme-challenges.conf.inc;" /etc/nginx/sites-available/*
         service nginx reload
     fi
 }
