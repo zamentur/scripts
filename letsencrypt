@@ -67,6 +67,7 @@ EOF
         try_files \$uri =404;
     }
 EOF
+        local domain=$1
         sed "@server_name ${domain};@a include conf.d/000-acme-challenges.conf.inc;" /etc/nginx/sites-available/*.conf
         service nginx reload
     fi
@@ -103,7 +104,7 @@ install_acme
 create_le_account_key
 create_domain_key $2
 create_challenge_dir
-configure_web_server
+configure_web_server $2
 ask_for_certificate $2
 setup_renewal $1
 cat << EOF
