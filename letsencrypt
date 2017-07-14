@@ -45,7 +45,7 @@ create_challenge_dir () {
 }
 
 configure_web_server () {
-    if [ -e /etc/apache2 ]; then
+    if service apache2 status; then
         cat > /etc/apache2/conf-enabled/000-acme-challenges.conf << EOF
 Alias /.well-known/acme-challenge /var/www/acme-challenges
 <Directory "/var/www/acme-challenges">
@@ -55,7 +55,8 @@ Alias /.well-known/acme-challenge /var/www/acme-challenges
 </Directory>
 EOF
         service apache2 reload
-    else
+    fi
+    if service nginx status; then
         cat /etc/nginx/conf.d/000-acme-challenges.conf << EOF
 location /.well-known/acme-challenge/ {
     alias /var/www/challenges/;
@@ -76,7 +77,8 @@ ask_for_certificate () {
 
 setup_renewal () {
     local mail=$1
-    wget https://gist.githubusercontent.com/maethor/78376ae0f0182b8b3801/raw/71a9e940741105d94f179f8cd3b46ddb0db7cf7c/letsencrypt-auto-renew.sh -O /usr/local/bin/letsencrypt-auto-renew.sh
+    [ -e /usr/local/bin/letsencrypt-auto-renew.sh ] || \
+        wget https://gist.githubusercontent.com/maethor/78376ae0f0182b8b3801/raw/71a9e940741105d94f179f8cd3b46ddb0db7cf7c/letsencrypt-auto-renew.sh -O /usr/local/bin/letsencrypt-auto-renew.sh
     cd  /usr/local/bin/
     echo "3e24d538143d2bc0b4c8a95e883b90a67807012a86a7699e0aa869e141edc4b6  letsencrypt-auto-renew.sh" | sha256sum -c
     sed -i s#ADMIN_EMAIL=root#ADMIN_EMAIL=${mail}# /usr/local/bin/letsencrypt-auto-renew.sh
