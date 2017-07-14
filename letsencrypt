@@ -62,9 +62,14 @@ EOF
     fi
     if service nginx status > /dev/null ; then
         cat /etc/nginx/conf.d/000-acme-challenges.conf << EOF
-location /.well-known/acme-challenge/ {
-    alias /var/www/challenges/;
-    try_files $uri =404;
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+        
+    location /.well-known/acme-challenge/ {
+        alias /var/www/challenges/;
+        try_files $uri =404;
+    }
 }
 EOF
         service nginx reload
