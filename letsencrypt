@@ -2,15 +2,17 @@
 set -eu
 
 create_user () {
-    useradd --no-create-home --system --shell /usr/sbin/nologin letsencrypt
+    getent passwd letsencrypt  > /dev/null || \
+        useradd --no-create-home --system --shell /usr/sbin/nologin letsencrypt
 }
 
 install_acme () {
     
-    [ -e /usr/local/bin/acme_tiny.py ] || \
-        wget https://raw.githubusercontent.com/diafygi/acme-tiny/master/acme_tiny.py -O /usr/local/bin/acme_tiny.py
     cd /usr/local/bin
-    echo "1abae6ea2045dd2490b8671c98e24bc82706df125fd171ce82b76d89c2bf3f46  acme_tiny.py" | sha256sum -c
+    if [ ! -e /usr/local/bin/acme_tiny.py ]; then 
+        wget https://raw.githubusercontent.com/diafygi/acme-tiny/master/acme_tiny.py -O /usr/local/bin/acme_tiny.py
+        echo "1abae6ea2045dd2490b8671c98e24bc82706df125fd171ce82b76d89c2bf3f46  acme_tiny.py" | sha256sum -c > /dev/null
+    fi
     chown letsencrypt:root /usr/local/bin/acme_tiny.py
     chmod 544 /usr/local/bin/acme_tiny.py
 }
@@ -30,9 +32,11 @@ create_domain_key () {
     mkdir -p /etc/letsencrypt/${domain}
     chown letsencrypt:root /etc/letsencrypt/${domain}
     cd /etc/letsencrypt/${domain}/
-    openssl genrsa -out ${domain}.key 4096
-    openssl req -new -sha256 -key ${domain}.key -subj "/CN=${domain}" > ${domain}.csr
-    #openssl req -new -sha256 -key ${domain}.key -subj "/" -reqexts SAN -config <(cat /etc/ssl/openssl.cnf <(printf "[SAN]\nsubjectAltName=DNS:arn-fai.net,DNS:${domain}")) > ${domain}.csr
+    if [ ! -e /etc/letsencrypt/${domain}/${domain}.key ];then
+        openssl genrsa -out ${domain}.key 4096
+        openssl req -new -sha256 -key ${domain}.key -subj "/CN=${domain}" > ${domain}.csr
+        #openssl req -new -sha256 -key ${domain}.key -subj "/" -reqexts SAN -config <(cat /etc/ssl/openssl.cnf <(printf "[SAN]\nsubjectAltName=DNS:arn-fai.net,DNS:${domain}")) > ${domain}.csr
+    fi
     chmod o=--- /etc/letsencrypt/${domain}/${domain}.key 
     chown root:ssl-cert  /etc/letsencrypt/${domain}/${domain}.key 
     chown letsencrypt:root /etc/letsencrypt/${domain}/${domain}.csr
@@ -45,7 +49,7 @@ create_challenge_dir () {
 }
 
 configure_web_server () {
-    if service apache2 status; then
+    if service apache2 status > /dev/null ; then
         cat > /etc/apache2/conf-enabled/000-acme-challenges.conf << EOF
 Alias /.well-known/acme-challenge /var/www/acme-challenges
 <Directory "/var/www/acme-challenges">
@@ -56,7 +60,7 @@ Alias /.well-known/acme-challenge /var/www/acme-challenges
 EOF
         service apache2 reload
     fi
-    if service nginx status; then
+    if service nginx status > /dev/null ; then
         cat /etc/nginx/conf.d/000-acme-challenges.conf << EOF
 location /.well-known/acme-challenge/ {
     alias /var/www/challenges/;
@@ -69,7 +73,7 @@ EOF
 
 ask_for_certificate () {
     local domain=$1
-    sudo -H -u letsencrypt bash -c  'python /usr/local/bin/acme_tiny.py --account-key /etc/letsencrypt/letsencrypt.key --csr /etc/letsencrypt/${domain}/${domain}.csr --acme-dir /var/www/acme-challenges/ > /etc/letsencrypt/${domain}/${domain}.crt'
+    sudo -H -u letsencrypt bash -c  "python /usr/local/bin/acme_tiny.py --account-key /etc/letsencrypt/letsencrypt.key --csr /etc/letsencrypt/${domain}/${domain}.csr --acme-dir /var/www/acme-challenges/ > /etc/letsencrypt/${domain}/${domain}.crt"
     cd /etc/letsencrypt
     wget -O - https://letsencrypt.org/certs/lets-encrypt-x3-cross-signed.pem > intermediate.pem
     cat ${domain}/${domain}.crt intermediate.pem > ${domain}/${domain}.crt+chain
@@ -77,10 +81,11 @@ ask_for_certificate () {
 
 setup_renewal () {
     local mail=$1
-    [ -e /usr/local/bin/letsencrypt-auto-renew.sh ] || \
-        wget https://gist.githubusercontent.com/maethor/78376ae0f0182b8b3801/raw/71a9e940741105d94f179f8cd3b46ddb0db7cf7c/letsencrypt-auto-renew.sh -O /usr/local/bin/letsencrypt-auto-renew.sh
     cd  /usr/local/bin/
-    echo "3e24d538143d2bc0b4c8a95e883b90a67807012a86a7699e0aa869e141edc4b6  letsencrypt-auto-renew.sh" | sha256sum -c
+    if [ ! -e /usr/local/bin/letsencrypt-auto-renew.sh ]; then
+        wget https://gist.githubusercontent.com/maethor/78376ae0f0182b8b3801/raw/71a9e940741105d94f179f8cd3b46ddb0db7cf7c/letsencrypt-auto-renew.sh -O /usr/local/bin/letsencrypt-auto-renew.sh
+        echo "3e24d538143d2bc0b4c8a95e883b90a67807012a86a7699e0aa869e141edc4b6  letsencrypt-auto-renew.sh" | sha256sum -c > /dev/null
+    fi
     sed -i s#ADMIN_EMAIL=root#ADMIN_EMAIL=${mail}# /usr/local/bin/letsencrypt-auto-renew.sh
     sed -i s@/srv/www/acme-challenges@/var/www/acme-challenges@ /usr/local/bin/letsencrypt-auto-renew.sh
     chown letsencrypt:root /usr/local/bin/letsencrypt-auto-renew.sh
@@ -89,7 +94,7 @@ setup_renewal () {
 }
 
 if [ $# -ne 2 ]; then
-    echo "usage "./letsencrypt MAIL DOMAIN"
+    echo "usage ./letsencrypt MAIL DOMAIN"
 fi
 
 create_user
