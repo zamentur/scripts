@@ -68,7 +68,7 @@ EOF
     }
 EOF
         local domain=$1
-        sed -i "/server_name ${domain};/a include conf.d/000-acme-challenges.conf.inc;" /etc/nginx/sites-available/*
+        sed -i "/server_name[[:space:]]\+${domain};/a include conf.d/000-acme-challenges.conf.inc;" /etc/nginx/sites-available/*
         service nginx reload
     fi
 }
