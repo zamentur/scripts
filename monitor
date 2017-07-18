@@ -22,7 +22,7 @@ alert () {
 
 freespace () {
     freespace="$(df --output=avail / | sed -n '2 p')"
-    (($freespace < $1)) && echo ok && alert "freespace $freespace" $MAIL && alert "freespace $freespace" $MAIL2
+    (($freespace < $1)) && alert "freespace $freespace" $MAIL && alert "freespace $freespace" $MAIL2
 }
 
 check_200 https://wikipedia.fr
