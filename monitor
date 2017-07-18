@@ -15,9 +15,18 @@ check_200 () {
         (alert $1 $MAIL && alert $1 $MAIL2)
     sleep 10s
 }
+
 alert () {
     echo "$1 has changed" | mail -s "$1 has changed" $2
 }
 
+freespace () {
+    freespace="$(df --output=avail / | sed -n '2 p')"
+    (($freespace < $1)) && echo ok && alert "freespace $freespace" $MAIL && alert "freespace $freespace" $MAIL2
+}
+
 check_200 https://wikipedia.fr
 monitor https://wikipedia.fr d41d8cd98f00b204e9800998ecf8427e
+
+# Alert if less than about 1G
+freespace 1000000
